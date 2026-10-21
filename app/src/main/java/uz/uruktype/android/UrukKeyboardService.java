@@ -37,7 +37,7 @@ public class UrukKeyboardService extends InputMethodService {
     TextView v=new TextView(this);
     v.setText(title);v.setTextSize(title.length()>4?13:21);v.setGravity(Gravity.CENTER);v.setTextColor(dark?Color.WHITE:Color.rgb(35,39,46));
     GradientDrawable bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(12);v.setBackground(bg);
-    LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,50*getResources().getDisplayMetrics().density,weight);
+    LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,(int)(50*getResources().getDisplayMetrics().density),weight);
     p.setMargins(2,3,2,3);v.setLayoutParams(p);return v;
   }
   private int standard(){return dark?0xff454951:0xffffffff;}
