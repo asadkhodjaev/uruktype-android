@@ -25,7 +25,7 @@ public class UrukKeyboardService extends InputMethodService {
   private final String[][] layouts={
     {"qwertyuiopö","asdfghjklğş","zxcvbnmç"},
     {"йцукенгшщзх","фывапролджэ","ячсмитьбю"},
-    {"qwertyuiop","asdfghjkl","zxcvbnm"},
+    {"qwertyuiopö","asdfghjklğş","zxcvbnmç"},
     {"йцукенгшўқғҳ","фывапролджэ","ячсмитьбю"}
   };
   private final String[] emojis={"😀","😂","❤️","👍","🙏","🎉","🙂","✅","🔥","🌹"};
