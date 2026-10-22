@@ -35,10 +35,11 @@ public class UrukKeyboardService extends InputMethodService {
   private TextView key(String title,float weight,int color){
     TextView v=new TextView(this);
     v.setText(title);v.setTextSize(title.length()>4?13:21);v.setGravity(Gravity.CENTER);v.setTextColor(dark?Color.WHITE:Color.rgb(35,39,46));
-    GradientDrawable bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(18*getResources().getDisplayMetrics().density);v.setBackground(bg);v.setElevation(1.5f*getResources().getDisplayMetrics().density);
+    GradientDrawable bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(dp(5));v.setBackground(bg);v.setElevation(dp(1));
     LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,(int)(50*getResources().getDisplayMetrics().density),weight);
-    p.setMargins(3,4,3,4);v.setLayoutParams(p);return v;
+    p.setMargins(dp(2),dp(3),dp(2),dp(3));v.setLayoutParams(p);return v;
   }
+  private int dp(float value){return (int)(value*getResources().getDisplayMetrics().density+0.5f);}
   private int standard(){return dark?0xff454951:0xffffffff;}
   private int utility(){return dark?0xff555a63:0xffd5d9e0;}
   private LinearLayout row(){
@@ -99,33 +100,72 @@ public class UrukKeyboardService extends InputMethodService {
       });
     }
   }
+  // A long press on the period opens an actual two-option picker, rather
+  // than automatically inserting punctuation or requiring a sliding gesture.
+  private void showPunctuationChoices(View anchor){
+    LinearLayout options=new LinearLayout(this);
+    options.setOrientation(LinearLayout.HORIZONTAL);
+    options.setPadding(dp(3),dp(3),dp(3),dp(3));
+    android.graphics.drawable.GradientDrawable panel=new android.graphics.drawable.GradientDrawable();
+    panel.setColor(dark?0xff30343c:0xfff2f4f8);
+    panel.setCornerRadius(dp(6));
+    options.setBackground(panel);
+    final android.widget.PopupWindow popup=new android.widget.PopupWindow(options,dp(124),dp(56),false);
+    popup.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+    popup.setOutsideTouchable(true);
+    popup.setElevation(dp(5));
+    popup.setInputMethodMode(android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED);
+    for(String value:new String[]{",","?"}){
+      TextView button=new TextView(this);
+      button.setText(value);
+      button.setContentDescription(value.equals(",")?"Comma":"Question mark");
+      button.setTextSize(23);
+      button.setGravity(Gravity.CENTER);
+      button.setTextColor(dark?Color.WHITE:Color.rgb(35,39,46));
+      android.graphics.drawable.GradientDrawable keyBackground=new android.graphics.drawable.GradientDrawable();
+      keyBackground.setColor(standard());
+      keyBackground.setCornerRadius(dp(5));
+      button.setBackground(keyBackground);
+      LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-1,1);
+      lp.setMargins(dp(2),dp(1),dp(2),dp(1));
+      options.addView(button,lp);
+      button.setOnClickListener(v->{popup.dismiss();send(value);});
+    }
+    popup.showAsDropDown(anchor,-dp(58),-dp(118));
+  }
   private void render(){
     if(root==null)return;
     int background=dark?0xff24262c:0xffe9edf4;root.setBackgroundColor(background);
     body.removeAllViews();
-    LinearLayout tools=row();
-    add(tools,"☷",1,utility(),()->{dark=!dark;render();});
-    add(tools,names[language],1,utility(),()->lang(1));
-    add(tools,"🙂",1,utility(),()->{emoji=!emoji;symbols=false;render();});
-    add(tools,"?123",1,utility(),()->{symbols=!symbols;emoji=false;render();});
-    add(tools,"⌫",1,utility(),()->erase());
+    // No toolbar above the number row: 1..0 and Backspace are always first.
+    LinearLayout numbers=row();
+    for(int i=1;i<=10;i++){
+      String digit=""+(i%10);
+      add(numbers,digit,1,utility(),()->send(digit));
+    }
+    add(numbers,"⌫",1.25f,utility(),()->erase());
     if(emoji){
       LinearLayout r=row();
       for(int i=0;i<5;i++){String s=emojis[i];add(r,s,1,standard(),()->send(s));}
       r=row();
       for(int i=5;i<10;i++){String s=emojis[i];add(r,s,1,standard(),()->send(s));}
     } else if(symbols){
-      characters("1234567890");
       characters("@#$%&-+()");
       characters("*/:;!?.,");
     } else {
-      LinearLayout numbers=row();
-      for(int i=1;i<=10;i++){String s=""+(i%10);add(numbers,s,1,utility(),()->send(s));}
       for(String s:layouts[language])characters(s);
     }
     LinearLayout last=row();
     add(last,"⇧",1.4f,utility(),()->shift());
-    add(last,",",0.9f,standard(),()->send(","));
+    TextView modeKey=key((symbols||emoji)?"ABC":"?123",1.4f,utility());
+    last.addView(modeKey);
+    modeKey.setOnClickListener(v->{
+      if(symbols||emoji){symbols=false;emoji=false;}
+      else{symbols=true;emoji=false;}
+      render();
+    });
+    // Emoji selection remains reachable without adding a toolbar button.
+    modeKey.setOnLongClickListener(v->{emoji=!emoji;symbols=false;render();return true;});
     TextView space=key(names[language],5,standard());last.addView(space);
     space.setOnTouchListener(new View.OnTouchListener(){
       float startX,startY;
@@ -140,7 +180,11 @@ public class UrukKeyboardService extends InputMethodService {
         return true;
       }
     });
-    add(last,".",0.9f,standard(),()->send("."));
+    TextView punctuationKey=key(".",0.9f,standard());
+    punctuationKey.setContentDescription("Period; long press to choose comma or question mark");
+    last.addView(punctuationKey);
+    punctuationKey.setOnClickListener(v->send("."));
+    punctuationKey.setOnLongClickListener(v->{showPunctuationChoices(v);return true;});
     add(last,"↵",1.4f,utility(),()->{
       InputConnection c=getCurrentInputConnection();if(c!=null)c.performEditorAction(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
     });
