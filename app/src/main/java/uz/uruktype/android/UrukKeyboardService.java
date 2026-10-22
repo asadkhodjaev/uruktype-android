@@ -21,11 +21,10 @@ import java.util.Arrays;
 import java.util.List;
 
 public class UrukKeyboardService extends InputMethodService {
-  private final String[] names={"EN","РУ","UZ","ЎЗ"};
+  private final String[] names={"EN·UZ","РУ","ЎЗ"};
   private final String[][] layouts={
     {"qwertyuiop","asdfghjkl","zxcvbnm"},
     {"йцукенгшщзх","фывапролджэ","ячсмитьбю"},
-    {"qwertyuioöp","asşdfgğhjkl","zxcçvbnm"},
     {"йцукенгшўқғҳ","фывапролджэ","ячсмитьбю"}
   };
   private final String[] emojis={"😀","😂","❤️","👍","🙏","🎉","🙂","✅","🔥","🌹"};
@@ -60,13 +59,42 @@ public class UrukKeyboardService extends InputMethodService {
   private void lang(int delta){
     language=(language+names.length+delta)%names.length;render();
   }
+  // New Uzbek Latin letters share QWERTY base keys with long presses.
+  private String uzbekAlternative(String letter){
+    switch(letter){
+      case "o": return "ö";
+      case "g": return "ğ";
+      case "s": return "ş";
+      case "c": return "ç";
+      default: return null;
+    }
+  }
   private void characters(String chars){
     LinearLayout r=row();
     String[] arr=chars.split("");
     for(String s:arr)if(!s.isEmpty()){
       String printed=uppercase?s.toUpperCase(java.util.Locale.ROOT):s;
-      add(r,printed,1,standard(),()->{
-        send(uppercase?printed:s);
+      TextView b=key(printed,1,standard());
+      // Only English-Uzbek Latin layout has these extra long-press characters.
+      String alternative=(language==0 && !symbols && !emoji)?uzbekAlternative(s):null;
+      if(alternative!=null){
+        String alternate=uppercase?alternative.toUpperCase(java.util.Locale.ROOT):alternative;
+        String shown=printed+" "+alternate;
+        android.text.SpannableString hint=new android.text.SpannableString(shown);
+        int start=printed.length()+1;
+        hint.setSpan(new android.text.style.RelativeSizeSpan(0.55f),start,shown.length(),android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        hint.setSpan(new android.text.style.SuperscriptSpan(),start,shown.length(),android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        b.setText(hint);
+        b.setContentDescription(printed+"; long press for "+alternate);
+        b.setOnLongClickListener(v->{
+          send(alternate);
+          if(uppercase){uppercase=false;render();}
+          return true;
+        });
+      }
+      r.addView(b);
+      b.setOnClickListener(v->{
+        send(printed);
         if(uppercase){uppercase=false;render();}
       });
     }
