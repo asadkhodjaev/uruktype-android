@@ -23,9 +23,9 @@ import java.util.List;
 public class UrukKeyboardService extends InputMethodService {
   private final String[] names={"EN","РУ","UZ","ЎЗ"};
   private final String[][] layouts={
-    {"qwertyuiopö","asdfghjklğş","zxcvbnmç"},
+    {"qwertyuiop","asdfghjkl","zxcvbnm"},
     {"йцукенгшщзх","фывапролджэ","ячсмитьбю"},
-    {"qwertyuiopö","asdfghjklğş","zxcvbnmç"},
+    {"qwertyuioöp","asşdfgğhjkl","zxcçvbnm"},
     {"йцукенгшўқғҳ","фывапролджэ","ячсмитьбю"}
   };
   private final String[] emojis={"😀","😂","❤️","👍","🙏","🎉","🙂","✅","🔥","🌹"};
