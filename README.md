@@ -1,5 +1,11 @@
-# UrukType Android
+# EasyType Android
 
-Experimental Android keyboard prototype. APK builds with GitHub Actions.
+Experimental English–Uzbek Latin and Russian–Uzbek Cyrillic keyboard for Android.
 
-**Security:** This project has not undergone a security audit. Avoid confidential input during testing.
+- Latin: long press O / G / S / C → Ö / Ğ / Ş / Ç.
+- Cyrillic: long press У / Г / Х / К → Ў / Ғ / Ҳ / Қ.
+- Swipe the spacebar or tap the globe to switch the two layouts.
+- Shift is above ?123; Backspace is above Enter.
+- Long-press period for comma or question mark.
+
+Prototype only; not security audited. Avoid confidential input until thoroughly tested.
