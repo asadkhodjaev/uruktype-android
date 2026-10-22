@@ -12,7 +12,7 @@ public class MainActivity extends Activity {
  @Override public void onCreate(Bundle b){
   super.onCreate(b);
   LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(34,60,34,20);
-  TextView intro=new TextView(this);intro.setText("EAZYTYPE — тестовая версия\n\n1. Включите EAZYTYPE в списке клавиатур.\n2. Выберите EAZYTYPE как текущую клавиатуру.\n3. Для переключения языков проведите пальцем по пробелу.\n\nКириллица: удерживайте У, Г, К, Х для Ў, Ғ, Қ, Ҳ. Латиница: Ö, Ğ, Ş, Ç находятся на основных клавишах. Удерживайте точку: слева ?, справа запятая.");intro.setTextSize(19);root.addView(intro);
+  TextView intro=new TextView(this);intro.setText("KeyboardUz — тестовая версия\n\n1. Включите KeyboardUz в списке клавиатур.\n2. Выберите KeyboardUz как текущую клавиатуру.\n3. Для переключения языков проведите пальцем по пробелу.\n\nКириллица: удерживайте У, Г, К, Х для Ў, Ғ, Қ, Ҳ. Латиница: удерживайте O, G, S, C для Ö, Ğ, Ş, Ç. Удерживайте точку, проведите к ? слева или запятой справа и отпустите палец.");intro.setTextSize(19);root.addView(intro);
   TextView enable=button("1. Включить клавиатуру");root.addView(enable);enable.setOnClickListener(v->startActivity(new Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)));
   TextView choose=button("2. Выбрать клавиатуру");root.addView(choose);choose.setOnClickListener(v->{InputMethodManager m=(InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);m.showInputMethodPicker();});
   setContentView(root);

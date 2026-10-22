@@ -1,4 +1,4 @@
-name: Build EAZYTYPE Android APK
+name: Build KeyboardUz Android APK
 on:
   push:
     branches: [main]
@@ -21,6 +21,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Check punctuation gesture
+        run: |
+          mkdir -p /tmp/keyboarduz-checks
+          javac -d /tmp/keyboarduz-checks app/src/main/java/uz/uruktype/android/PunctuationSwipe.java checks/PunctuationSwipeCheck.java
+          java -cp /tmp/keyboarduz-checks uz.uruktype.android.PunctuationSwipeCheck
       - name: Build APK
         run: gradle --no-daemon :app:assembleDebug
       - name: Verify APK signature and metadata
@@ -28,10 +33,10 @@ jobs:
           APK=app/build/outputs/apk/debug/app-debug.apk
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK"
-          cp "$APK" EAZYTYPE_v0.7_Beta.apk
+          cp "$APK" KeyboardUz_v0.8_Beta.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: EAZYTYPE-v0.7-Beta-APK
-          path: EAZYTYPE_v0.7_Beta.apk
+          name: KeyboardUz-v0.8-Beta-APK
+          path: KeyboardUz_v0.8_Beta.apk
           if-no-files-found: error
 

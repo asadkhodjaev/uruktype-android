@@ -23,7 +23,7 @@ import java.util.List;
 public class UrukKeyboardService extends InputMethodService {
   private final String[] names={"eng","рус"};
   private final String[][] layouts={
-    {"qwertyuiopö","asdfghjklğş","zxcvbnmç"},
+    {"qwertyuiop","asdfghjkl","zxcvbnm"},
     {"йцукенгшщзх","фывапролджэ","ячсмитьбю"}
   };
   private final String[] emojis={"😀","😂","❤️","👍","🙏","🎉","🙂","✅","🔥","🌹"};
@@ -31,13 +31,16 @@ public class UrukKeyboardService extends InputMethodService {
   private boolean uppercase=false,symbols=false,emoji=false,dark=false;
   private LinearLayout root,body,bar;
   private android.widget.PopupWindow punctuationPopup;
+  private View letterKeySample;
+  private final TextView[] punctuationOptions=new TextView[2];
+  private int punctuationLeft,punctuationTop,punctuationWidth,punctuationHeight;
   private final List<String> suggestions=new ArrayList<>();
   private TextView key(String title,float weight,int color){
     TextView v=new TextView(this);
     v.setText(title);v.setTextSize(title.length()>1?16:22);v.setGravity(Gravity.CENTER);v.setTextColor(dark?Color.WHITE:Color.rgb(35,39,46));
     v.setIncludeFontPadding(false);
     GradientDrawable bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(dp(9));v.setBackground(bg);v.setElevation(dp(1));
-    LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,(int)(50*getResources().getDisplayMetrics().density),weight);
+    LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(45),weight);
     p.setMargins(dp(2),dp(3),dp(2),dp(3));v.setLayoutParams(p);return v;
   }
   private int dp(float value){return (int)(value*getResources().getDisplayMetrics().density+0.5f);}
@@ -66,7 +69,13 @@ public class UrukKeyboardService extends InputMethodService {
   // Long presses on base letters: one shared Latin and one shared Cyrillic layout.
   private String alternative(String letter){
     if(language==0){
-      return null; // Ö Ğ Ş Ç have their own primary keys.
+      switch(letter){
+        case "o": return "ö";
+        case "g": return "ğ";
+        case "s": return "ş";
+        case "c": return "ç";
+        default: return null;
+      }
     } else {
       switch(letter){
         case "у": return "ў";
@@ -100,9 +109,10 @@ public class UrukKeyboardService extends InputMethodService {
       bg.setColor(standard());bg.setCornerRadius(dp(9));
       frame.setBackground(bg);
       frame.setElevation(dp(1));
-      LinearLayout.LayoutParams cell=new LinearLayout.LayoutParams(0,dp(51),1f);
+      LinearLayout.LayoutParams cell=new LinearLayout.LayoutParams(0,dp(45.9f),1f);
       cell.setMargins(dp(2),dp(3),dp(2),dp(3));
       letters.addView(frame,cell);
+      if(letterKeySample==null)letterKeySample=frame;
       TextView main=new TextView(this);
       main.setText(primary);
       main.setTextSize(22);
@@ -136,48 +146,107 @@ public class UrukKeyboardService extends InputMethodService {
       add(r,"⌫",1.4f,utility(),()->erase());
     }
   }
-  // A long press on the period opens an actual two-option picker, rather
-  // than automatically inserting punctuation or requiring a sliding gesture.
+  // Keep the original dot touch stream: hold, slide to an option, release.
   private void showPunctuationChoices(View anchor){
     dismissPunctuation();
+    int keyWidth=letterKeySample!=null&&letterKeySample.getWidth()>0?letterKeySample.getWidth():dp(30);
+    int keyHeight=letterKeySample!=null&&letterKeySample.getHeight()>0?letterKeySample.getHeight():dp(45.9f);
+    int padding=dp(3),gap=dp(4);
+    punctuationWidth=2*keyWidth+gap+2*padding;
+    punctuationHeight=keyHeight+2*padding;
     LinearLayout options=new LinearLayout(this);
     options.setOrientation(LinearLayout.HORIZONTAL);
-    options.setPadding(dp(3),dp(3),dp(3),dp(3));
-    android.graphics.drawable.GradientDrawable panel=new android.graphics.drawable.GradientDrawable();
-    panel.setColor(dark?0xff30343c:0xfff2f4f8);
-    panel.setCornerRadius(dp(6));
+    options.setPadding(padding,padding,padding,padding);
+    GradientDrawable panel=new GradientDrawable();
+    panel.setColor(dark?0xff30343c:0xfff2f4f8);panel.setCornerRadius(dp(9));
     options.setBackground(panel);
-    final android.widget.PopupWindow popup=new android.widget.PopupWindow(options,dp(124),dp(56),true);
+    android.widget.PopupWindow popup=new android.widget.PopupWindow(options,punctuationWidth,punctuationHeight,false);
     punctuationPopup=popup;
-    popup.setOnDismissListener(()->{if(punctuationPopup==popup)punctuationPopup=null;});
-    popup.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
-    popup.setOutsideTouchable(true);
+    popup.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+    popup.setTouchable(false); // Finger events continue to the dot, even over this panel.
+    popup.setOutsideTouchable(false);
     popup.setElevation(dp(5));
     popup.setInputMethodMode(android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED);
-    for(String value:new String[]{"?",","}){
+    String[] values={"?",","};
+    for(int i=0;i<values.length;i++){
       TextView button=new TextView(this);
-      button.setText(value);
-      button.setContentDescription(value.equals(",")?"Comma":"Question mark");
-      button.setTextSize(23);
+      button.setText(values[i]);button.setTextSize(22);button.setIncludeFontPadding(false);
       button.setGravity(Gravity.CENTER);
-      button.setTextColor(dark?Color.WHITE:Color.rgb(35,39,46));
-      android.graphics.drawable.GradientDrawable keyBackground=new android.graphics.drawable.GradientDrawable();
-      keyBackground.setColor(standard());
-      keyBackground.setCornerRadius(dp(5));
-      button.setBackground(keyBackground);
-      LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-1,1);
-      lp.setMargins(dp(2),dp(1),dp(2),dp(1));
-      options.addView(button,lp);
-      button.setOnClickListener(v->{send(value);confirmFeedback(v);popup.dismiss();});
+      button.setTextColor(dark?Color.WHITE:0xff21242a);
+      LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(keyWidth,keyHeight);
+      if(i==1)lp.leftMargin=gap;
+      options.addView(button,lp);punctuationOptions[i]=button;
     }
-    int[] location=new int[2];anchor.getLocationInWindow(location);
-    int panelWidth=dp(124);
-    int x=Math.max(dp(4),Math.min(location[0]+anchor.getWidth()/2-panelWidth/2,
-      getResources().getDisplayMetrics().widthPixels-panelWidth-dp(4)));
-    popup.showAsDropDown(anchor,x-location[0],-anchor.getHeight()-dp(62));
+    highlightPunctuation(-1);
+    int[] position=new int[2];anchor.getLocationOnScreen(position);
+    punctuationLeft=Math.max(dp(4),Math.min(position[0]+anchor.getWidth()/2-punctuationWidth/2,
+      getResources().getDisplayMetrics().widthPixels-punctuationWidth-dp(4)));
+    popup.showAsDropDown(anchor,punctuationLeft-position[0],-anchor.getHeight()-punctuationHeight-dp(6));
+    // Use the actual panel bounds after the window manager has positioned it.
+    options.post(()->{
+      if(punctuationPopup==popup){
+        int[] actual=new int[2];options.getLocationOnScreen(actual);
+        punctuationLeft=actual[0];punctuationTop=actual[1];
+      }
+    });
+    punctuationTop=position[1]-punctuationHeight-dp(6);
+  }
+  private void highlightPunctuation(int selected){
+    for(int i=0;i<punctuationOptions.length;i++){
+      TextView option=punctuationOptions[i];if(option==null)continue;
+      GradientDrawable background=new GradientDrawable();
+      background.setColor(i==selected?0xffc4daf8:standard());background.setCornerRadius(dp(9));
+      option.setBackground(background);
+    }
+  }
+  private void bindPunctuationGesture(View dot){
+    dot.setOnTouchListener(new View.OnTouchListener(){
+      final android.os.Handler handler=new android.os.Handler(android.os.Looper.getMainLooper());
+      float downX,downY;
+      boolean active,held;
+      int selected=-1;
+      final int slop=android.view.ViewConfiguration.get(UrukKeyboardService.this).getScaledTouchSlop();
+      final Runnable hold=()->{
+        if(active){held=true;showPunctuationChoices(dot);}
+      };
+      @Override public boolean onTouch(View v,MotionEvent event){
+        switch(event.getActionMasked()){
+          case MotionEvent.ACTION_DOWN:
+            downX=event.getRawX();downY=event.getRawY();active=true;held=false;selected=-1;
+            v.setPressed(true);
+            handler.postDelayed(hold,android.view.ViewConfiguration.getLongPressTimeout());
+            return true;
+          case MotionEvent.ACTION_MOVE:
+            if(!active)return true;
+            float dx=event.getRawX()-downX,dy=event.getRawY()-downY;
+            if(!held){
+              if(Math.hypot(dx,dy)>slop){handler.removeCallbacks(hold);active=false;v.setPressed(false);}
+            } else {
+              selected=PunctuationSwipe.choose(event.getRawX(),event.getRawY(),downX,downY,
+                punctuationLeft,punctuationTop,punctuationWidth,punctuationHeight,v.getHeight(),slop);
+              highlightPunctuation(selected);
+            }
+            return true;
+          case MotionEvent.ACTION_UP:
+            handler.removeCallbacks(hold);v.setPressed(false);
+            if(active){
+              if(held){
+                selected=PunctuationSwipe.choose(event.getRawX(),event.getRawY(),downX,downY,
+                  punctuationLeft,punctuationTop,punctuationWidth,punctuationHeight,v.getHeight(),slop);
+                if(selected>=0){send(selected==0?"?":",");confirmFeedback(v);}
+              } else {v.performClick();}
+            }
+            active=false;dismissPunctuation();return true;
+          case MotionEvent.ACTION_CANCEL:
+            handler.removeCallbacks(hold);active=false;v.setPressed(false);dismissPunctuation();return true;
+          default:return true;
+        }
+      }
+    });
   }
   private void dismissPunctuation(){
     if(punctuationPopup!=null){punctuationPopup.dismiss();punctuationPopup=null;}
+    punctuationOptions[0]=null;punctuationOptions[1]=null;
   }
   private void confirmFeedback(View view){
     android.os.Vibrator vibrator=(android.os.Vibrator)getSystemService(VIBRATOR_SERVICE);
@@ -190,6 +259,7 @@ public class UrukKeyboardService extends InputMethodService {
     dismissPunctuation();
     root.setBackgroundColor(dark?0xff262930:0xffe3e3e7);
     body.removeAllViews();
+    letterKeySample=null;
     // Thin number row, no additional toolbar.
     LinearLayout digits=row();
     for(int n=1;n<=10;n++){
@@ -227,8 +297,7 @@ public class UrukKeyboardService extends InputMethodService {
       render();
     });
     mode.setOnLongClickListener(v->{emoji=!emoji;symbols=false;render();return true;});
-    add(bottom,"◎",1f,utility(),()->lang(1));
-    TextView space=key(names[language],7.1f,standard());
+    TextView space=key(names[language],8.1f,standard());
     bottom.addView(space);
     space.setTextSize(15);
     space.setTextColor(dark?0xffa5a5aa:0xff85858b);
@@ -246,10 +315,10 @@ public class UrukKeyboardService extends InputMethodService {
       }
     });
     TextView dot=key(".",0.9f,standard());
-    dot.setContentDescription("Точка; удерживайте для запятой или вопросительного знака");
+    dot.setContentDescription("Точка; удерживайте и проведите к вопросительному знаку слева или запятой справа");
     bottom.addView(dot);
     dot.setOnClickListener(v->send("."));
-    dot.setOnLongClickListener(v->{showPunctuationChoices(v);return true;});
+    bindPunctuationGesture(dot);
     TextView enter=key("OK",1.4f,utility());
     enter.setTextColor(0xff367ad7);
     bottom.addView(enter);
