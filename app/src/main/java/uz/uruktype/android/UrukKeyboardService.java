@@ -41,13 +41,15 @@ public class UrukKeyboardService extends InputMethodService {
     v.setIncludeFontPadding(false);
     GradientDrawable bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(dp(9));v.setBackground(bg);v.setElevation(dp(1));
     LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(45),weight);
-    p.setMargins(dp(2),dp(3),dp(2),dp(3));v.setLayoutParams(p);return v;
+    p.setMargins(dp(2),dp(3),dp(2),dp(3));v.setLayoutParams(p);
+    v.setOnTouchListener((view,event)->{pressFeedback(view,event);return false;});return v;
   }
   private int dp(float value){return (int)(value*getResources().getDisplayMetrics().density+0.5f);}
   private int standard(){return dark?0xff454951:0xffffffff;}
   private int utility(){return dark?0xff555a63:0xffc9cacc;}
   private LinearLayout row(){
     LinearLayout r=new LinearLayout(this);r.setGravity(Gravity.CENTER);r.setOrientation(LinearLayout.HORIZONTAL);
+    r.setClipChildren(false);r.setClipToPadding(false);
     body.addView(r,new LinearLayout.LayoutParams(-1,-2));return r;
   }
   private void add(LinearLayout r,String label,float width,int color,Runnable onTap){
@@ -96,7 +98,7 @@ public class UrukKeyboardService extends InputMethodService {
     LinearLayout letters=r;
     if(lastLetterRow){
       letters=new LinearLayout(this);
-      letters.setOrientation(LinearLayout.HORIZONTAL);
+      letters.setOrientation(LinearLayout.HORIZONTAL);letters.setClipChildren(false);letters.setClipToPadding(false);
       r.addView(letters,new LinearLayout.LayoutParams(0,-2,9f));
     }
     for(String original:characters.split("")){
@@ -112,6 +114,7 @@ public class UrukKeyboardService extends InputMethodService {
       LinearLayout.LayoutParams cell=new LinearLayout.LayoutParams(0,dp(45.9f),1f);
       cell.setMargins(dp(2),dp(3),dp(2),dp(3));
       letters.addView(frame,cell);
+      frame.setOnTouchListener((view,event)->{pressFeedback(view,event);return false;});
       if(letterKeySample==null)letterKeySample=frame;
       TextView main=new TextView(this);
       main.setText(primary);
@@ -210,6 +213,7 @@ public class UrukKeyboardService extends InputMethodService {
         if(active){held=true;showPunctuationChoices(dot);}
       };
       @Override public boolean onTouch(View v,MotionEvent event){
+        pressFeedback(v,event);
         switch(event.getActionMasked()){
           case MotionEvent.ACTION_DOWN:
             downX=event.getRawX();downY=event.getRawY();active=true;held=false;selected=-1;
@@ -220,7 +224,7 @@ public class UrukKeyboardService extends InputMethodService {
             if(!active)return true;
             float dx=event.getRawX()-downX,dy=event.getRawY()-downY;
             if(!held){
-              if(Math.hypot(dx,dy)>slop){handler.removeCallbacks(hold);active=false;v.setPressed(false);}
+              if(Math.hypot(dx,dy)>slop){handler.removeCallbacks(hold);active=false;v.setPressed(false);pressedVisual(v,false);}
             } else {
               selected=PunctuationSwipe.choose(event.getRawX(),event.getRawY(),downX,downY,
                 punctuationLeft,punctuationTop,punctuationWidth,punctuationHeight,v.getHeight(),slop);
@@ -248,12 +252,27 @@ public class UrukKeyboardService extends InputMethodService {
     if(punctuationPopup!=null){punctuationPopup.dismiss();punctuationPopup=null;}
     punctuationOptions[0]=null;punctuationOptions[1]=null;
   }
-  private void confirmFeedback(View view){
+  private void pressedVisual(View view,boolean pressed){
+    view.setScaleX(pressed?1.3f:1f);view.setScaleY(pressed?1.3f:1f);
+    view.setTranslationZ(pressed?dp(8):0);
+  }
+  private void pressFeedback(View view,MotionEvent event){
+    switch(event.getActionMasked()){
+      case MotionEvent.ACTION_DOWN:
+        pressedVisual(view,true);vibrateSoft(view,8,36);break;
+      case MotionEvent.ACTION_UP:
+      case MotionEvent.ACTION_CANCEL:
+        pressedVisual(view,false);break;
+    }
+  }
+  private void vibrateSoft(View view,int duration,int amplitude){
     android.os.Vibrator vibrator=(android.os.Vibrator)getSystemService(VIBRATOR_SERVICE);
     if(vibrator!=null&&vibrator.hasVibrator()){
-      vibrator.vibrate(android.os.VibrationEffect.createOneShot(18,android.os.VibrationEffect.DEFAULT_AMPLITUDE));
+      vibrator.vibrate(android.os.VibrationEffect.createOneShot(duration,
+        vibrator.hasAmplitudeControl()?amplitude:android.os.VibrationEffect.DEFAULT_AMPLITUDE));
     } else view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
   }
+  private void confirmFeedback(View view){vibrateSoft(view,12,60);}
   private void render(){
     if(root==null)return;
     dismissPunctuation();
@@ -304,6 +323,7 @@ public class UrukKeyboardService extends InputMethodService {
     space.setOnTouchListener(new View.OnTouchListener(){
       float startX,startY;
       @Override public boolean onTouch(View v,MotionEvent e){
+        pressFeedback(v,e);
         if(e.getAction()==MotionEvent.ACTION_DOWN){startX=e.getX();startY=e.getY();return true;}
         if(e.getAction()==MotionEvent.ACTION_UP){
           float dx=e.getX()-startX,dy=e.getY()-startY;
@@ -336,8 +356,8 @@ public class UrukKeyboardService extends InputMethodService {
   }
   @Override public View onCreateInputView(){
     language=getSharedPreferences("keyboard",MODE_PRIVATE).getInt("language",0)%names.length;
-    root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(10),dp(10),dp(10),dp(11));
-    body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);root.addView(body);
+    root=new LinearLayout(this);root.setClipChildren(false);root.setClipToPadding(false);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(10),dp(10),dp(10),dp(11));
+    body=new LinearLayout(this);body.setClipChildren(false);body.setClipToPadding(false);body.setOrientation(LinearLayout.VERTICAL);root.addView(body);
     render();return root;
   }
   @Override public void onFinishInputView(boolean finishingInput){
