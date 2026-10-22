@@ -348,6 +348,8 @@ public class UrukKeyboardService extends InputMethodService {
       ||action==android.view.inputmethod.EditorInfo.IME_ACTION_NONE||action==android.view.inputmethod.EditorInfo.IME_ACTION_UNSPECIFIED;
     enter.setText(newline?"↵":action==android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH?"⌕":
       action==android.view.inputmethod.EditorInfo.IME_ACTION_NEXT?"→":"OK");
+    enter.setTextSize(newline||action==android.view.inputmethod.EditorInfo.IME_ACTION_NEXT?26:
+      action==android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH?24:16);
     enter.setContentDescription(newline?"Новая строка":"Подтвердить ввод");
     enter.setOnClickListener(v->{
       InputConnection c=getCurrentInputConnection();
