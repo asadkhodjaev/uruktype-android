@@ -1,0 +1,25 @@
+name: Prepare APK tools
+on:
+  push:
+    branches: [keyboard-apk-tools]
+permissions:
+  contents: read
+jobs:
+  tools:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Android build tools
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'build-tools;35.0.0'
+      - name: Prepare tools
+        run: |
+          mkdir tools
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/aapt" tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" tools/
+          cp -r "$ANDROID_HOME/build-tools/35.0.0/lib64" tools/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Android-APK-tools
+          path: tools/
+          if-no-files-found: error
