@@ -23,7 +23,7 @@ import java.util.List;
 public class UrukKeyboardService extends InputMethodService {
   private final String[] names={"EN","РУ","UZ","ЎЗ"};
   private final String[][] layouts={
-    {"qwertyuiop","asdfghjkl","zxcvbnm"},
+    {"qwertyuiopö","asdfghjklğş","zxcvbnmç"},
     {"йцукенгшщзх","фывапролджэ","ячсмитьбю"},
     {"qwertyuiop","asdfghjkl","zxcvbnm"},
     {"йцукенгшўқғҳ","фывапролджэ","ячсмитьбю"}
@@ -64,7 +64,7 @@ public class UrukKeyboardService extends InputMethodService {
     LinearLayout r=row();
     String[] arr=chars.split("");
     for(String s:arr)if(!s.isEmpty()){
-      String printed=uppercase?s.toUpperCase():s;
+      String printed=uppercase?s.toUpperCase(java.util.Locale.ROOT):s;
       add(r,printed,1,standard(),()->{
         send(uppercase?printed:s);
         if(uppercase){uppercase=false;render();}
