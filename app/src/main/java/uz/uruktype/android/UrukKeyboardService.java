@@ -21,11 +21,10 @@ import java.util.Arrays;
 import java.util.List;
 
 public class UrukKeyboardService extends InputMethodService {
-  private final String[] names={"EN·UZ","РУ","ЎЗ"};
+  private final String[] names={"EN·UZ","РУ·ЎЗ"};
   private final String[][] layouts={
     {"qwertyuiop","asdfghjkl","zxcvbnm"},
-    {"йцукенгшщзх","фывапролджэ","ячсмитьбю"},
-    {"йцукенгшўқғҳ","фывапролджэ","ячсмитьбю"}
+    {"йцукенгшщзх","фывапролджэ","ячсмитьбю"}
   };
   private final String[] emojis={"😀","😂","❤️","👍","🙏","🎉","🙂","✅","🔥","🌹"};
   private int language=0;
@@ -35,7 +34,7 @@ public class UrukKeyboardService extends InputMethodService {
   private TextView key(String title,float weight,int color){
     TextView v=new TextView(this);
     v.setText(title);v.setTextSize(title.length()>4?13:21);v.setGravity(Gravity.CENTER);v.setTextColor(dark?Color.WHITE:Color.rgb(35,39,46));
-    GradientDrawable bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(dp(5));v.setBackground(bg);v.setElevation(dp(1));
+    GradientDrawable bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(dp(7));v.setBackground(bg);v.setElevation(dp(1));
     LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,(int)(50*getResources().getDisplayMetrics().density),weight);
     p.setMargins(dp(2),dp(3),dp(2),dp(3));v.setLayoutParams(p);return v;
   }
@@ -60,44 +59,73 @@ public class UrukKeyboardService extends InputMethodService {
   private void lang(int delta){
     language=(language+names.length+delta)%names.length;render();
   }
-  // New Uzbek Latin letters share QWERTY base keys with long presses.
-  private String uzbekAlternative(String letter){
-    switch(letter){
-      case "o": return "ö";
-      case "g": return "ğ";
-      case "s": return "ş";
-      case "c": return "ç";
-      default: return null;
+  // Long presses on base letters: one shared Latin and one shared Cyrillic layout.
+  private String alternative(String letter){
+    if(language==0){
+      switch(letter){
+        case "o": return "ö";
+        case "g": return "ğ";
+        case "s": return "ş";
+        case "c": return "ç";
+        default: return null;
+      }
+    } else {
+      switch(letter){
+        case "у": return "ў";
+        case "г": return "ғ";
+        case "х": return "ҳ";
+        case "к": return "қ";
+        default: return null;
+      }
     }
   }
-  private void characters(String chars){
+  private void characterRow(String characters,boolean lastLetterRow){
     LinearLayout r=row();
-    String[] arr=chars.split("");
-    for(String s:arr)if(!s.isEmpty()){
-      String printed=uppercase?s.toUpperCase(java.util.Locale.ROOT):s;
-      TextView b=key(printed,1,standard());
-      // Only English-Uzbek Latin layout has these extra long-press characters.
-      String alternative=(language==0 && !symbols && !emoji)?uzbekAlternative(s):null;
-      if(alternative!=null){
-        String alternate=uppercase?alternative.toUpperCase(java.util.Locale.ROOT):alternative;
-        String shown=printed+" "+alternate;
-        android.text.SpannableString hint=new android.text.SpannableString(shown);
-        int start=printed.length()+1;
-        hint.setSpan(new android.text.style.RelativeSizeSpan(0.55f),start,shown.length(),android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        hint.setSpan(new android.text.style.SuperscriptSpan(),start,shown.length(),android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        b.setText(hint);
-        b.setContentDescription(printed+"; long press for "+alternate);
-        b.setOnLongClickListener(v->{
-          send(alternate);
+    if(lastLetterRow){
+      add(r,"⇧",1.4f,utility(),()->shift());
+    }
+    for(String original:characters.split("")){
+      if(original.isEmpty())continue;
+      final String primary=uppercase?original.toUpperCase(java.util.Locale.ROOT):original;
+      String alternateBase=(!symbols&&!emoji)?alternative(original):null;
+      final String secondary=alternateBase==null?null:(uppercase?alternateBase.toUpperCase(java.util.Locale.ROOT):alternateBase);
+      android.widget.FrameLayout frame=new android.widget.FrameLayout(this);
+      GradientDrawable bg=new GradientDrawable();
+      bg.setColor(standard());bg.setCornerRadius(dp(7));
+      frame.setBackground(bg);
+      frame.setElevation(dp(1));
+      LinearLayout.LayoutParams cell=new LinearLayout.LayoutParams(0,dp(51),1f);
+      cell.setMargins(dp(2),dp(3),dp(2),dp(3));
+      r.addView(frame,cell);
+      TextView main=new TextView(this);
+      main.setText(primary);
+      main.setTextSize(22);
+      main.setGravity(Gravity.CENTER);
+      main.setTextColor(dark?Color.WHITE:0xff21242a);
+      frame.addView(main,new android.widget.FrameLayout.LayoutParams(-1,-1));
+      if(secondary!=null){
+        TextView hint=new TextView(this);
+        hint.setText(secondary);
+        hint.setTextSize(10);
+        hint.setGravity(Gravity.CENTER);
+        hint.setTextColor(dark?0xff9ca3ae:0xff9299a5);
+        android.widget.FrameLayout.LayoutParams hp=new android.widget.FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.RIGHT);
+        hp.setMargins(0,dp(1),dp(3),0);
+        frame.addView(hint,hp);
+        frame.setContentDescription(primary+"; удерживайте для "+secondary);
+        frame.setOnLongClickListener(v->{
+          send(secondary);
           if(uppercase){uppercase=false;render();}
           return true;
         });
       }
-      r.addView(b);
-      b.setOnClickListener(v->{
-        send(printed);
+      frame.setOnClickListener(v->{
+        send(primary);
         if(uppercase){uppercase=false;render();}
       });
+    }
+    if(lastLetterRow){
+      add(r,"⌫",1.4f,utility(),()->erase());
     }
   }
   // A long press on the period opens an actual two-option picker, rather
@@ -135,62 +163,77 @@ public class UrukKeyboardService extends InputMethodService {
   }
   private void render(){
     if(root==null)return;
-    int background=dark?0xff24262c:0xffe9edf4;root.setBackgroundColor(background);
+    root.setBackgroundColor(dark?0xff262930:0xffe4e6eb);
     body.removeAllViews();
-    // No toolbar above the number row: 1..0 and Backspace are always first.
-    LinearLayout numbers=row();
-    for(int i=1;i<=10;i++){
-      String digit=""+(i%10);
-      add(numbers,digit,1,utility(),()->send(digit));
+    // Thin number row, no additional toolbar.
+    LinearLayout digits=row();
+    for(int n=1;n<=10;n++){
+      String digit=String.valueOf(n%10);
+      add(digits,digit,1f,standard(),()->send(digit));
     }
-    add(numbers,"⌫",1.25f,utility(),()->erase());
     if(emoji){
+      for(int line=0;line<2;line++){
+        LinearLayout r=row();
+        for(int col=0;col<5;col++){
+          String value=emojis[line*5+col];
+          add(r,value,1f,standard(),()->send(value));
+        }
+      }
       LinearLayout r=row();
-      for(int i=0;i<5;i++){String s=emojis[i];add(r,s,1,standard(),()->send(s));}
-      r=row();
-      for(int i=5;i<10;i++){String s=emojis[i];add(r,s,1,standard(),()->send(s));}
+      add(r,"⇧",1.4f,utility(),()->shift());
+      add(r,"🙂",8f,standard(),()->send("🙂"));
+      add(r,"⌫",1.4f,utility(),()->erase());
     } else if(symbols){
-      characters("@#$%&-+()");
-      characters("*/:;!?.,");
+      characterRow("@#$%&-+()",false);
+      characterRow("*/:;!?.,",false);
+      characterRow("[]{}<>_=",true);
     } else {
-      for(String s:layouts[language])characters(s);
+      characterRow(layouts[language][0],false);
+      characterRow(layouts[language][1],false);
+      // Shift directly above the ?123 key, Backspace directly above Enter.
+      characterRow(layouts[language][2],true);
     }
-    LinearLayout last=row();
-    add(last,"⇧",1.4f,utility(),()->shift());
-    TextView modeKey=key((symbols||emoji)?"ABC":"?123",1.4f,utility());
-    last.addView(modeKey);
-    modeKey.setOnClickListener(v->{
+    LinearLayout bottom=row();
+    TextView mode=key((symbols||emoji)?"ABC":"?123",1.4f,utility());
+    bottom.addView(mode);
+    mode.setOnClickListener(v->{
       if(symbols||emoji){symbols=false;emoji=false;}
       else{symbols=true;emoji=false;}
       render();
     });
-    // Emoji selection remains reachable without adding a toolbar button.
-    modeKey.setOnLongClickListener(v->{emoji=!emoji;symbols=false;render();return true;});
-    TextView space=key(names[language],5,standard());last.addView(space);
+    mode.setOnLongClickListener(v->{emoji=!emoji;symbols=false;render();return true;});
+    add(bottom,"◎",1f,utility(),()->lang(1));
+    TextView space=key(names[language],5f,standard());
+    bottom.addView(space);
+    space.setTextSize(15);
     space.setOnTouchListener(new View.OnTouchListener(){
       float startX,startY;
       @Override public boolean onTouch(View v,MotionEvent e){
         if(e.getAction()==MotionEvent.ACTION_DOWN){startX=e.getX();startY=e.getY();return true;}
         if(e.getAction()==MotionEvent.ACTION_UP){
           float dx=e.getX()-startX,dy=e.getY()-startY;
-          if(Math.abs(dx)>50*getResources().getDisplayMetrics().density && Math.abs(dx)>Math.abs(dy)*1.25f)lang(dx<0?1:-1);
+          if(Math.abs(dx)>dp(50)&&Math.abs(dx)>Math.abs(dy)*1.25f)lang(dx<0?1:-1);
           else send(" ");
           return true;
         }
         return true;
       }
     });
-    TextView punctuationKey=key(".",0.9f,standard());
-    punctuationKey.setContentDescription("Period; long press to choose comma or question mark");
-    last.addView(punctuationKey);
-    punctuationKey.setOnClickListener(v->send("."));
-    punctuationKey.setOnLongClickListener(v->{showPunctuationChoices(v);return true;});
-    add(last,"↵",1.4f,utility(),()->{
-      InputConnection c=getCurrentInputConnection();if(c!=null)c.performEditorAction(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
+    TextView dot=key(".",0.9f,standard());
+    dot.setContentDescription("Точка; удерживайте для запятой или вопросительного знака");
+    bottom.addView(dot);
+    dot.setOnClickListener(v->send("."));
+    dot.setOnLongClickListener(v->{showPunctuationChoices(v);return true;});
+    TextView enter=key("OK",1.4f,utility());
+    enter.setTextColor(0xff367ad7);
+    bottom.addView(enter);
+    enter.setOnClickListener(v->{
+      InputConnection c=getCurrentInputConnection();
+      if(c!=null)c.performEditorAction(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
     });
   }
   @Override public View onCreateInputView(){
-    root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(4,7,4,12);
+    root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(10),dp(10),dp(10),dp(11));
     body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);root.addView(body);
     render();return root;
   }
