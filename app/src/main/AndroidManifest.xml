@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
- <application android:label="UrukType Android (beta)"
+ <application android:label="EasyType"
   android:allowBackup="false"
   android:usesCleartextTraffic="false"
   android:theme="@android:style/Theme.Material.Light.NoActionBar">
@@ -13,7 +13,7 @@
   <service android:name=".UrukKeyboardService"
    android:permission="android.permission.BIND_INPUT_METHOD"
    android:exported="true"
-   android:label="UrukType Android">
+   android:label="EasyType">
    <intent-filter><action android:name="android.view.InputMethod"/></intent-filter>
    <meta-data android:name="android.view.im" android:resource="@xml/input_method"/>
   </service>
