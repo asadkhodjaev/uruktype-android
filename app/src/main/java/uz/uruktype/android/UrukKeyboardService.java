@@ -21,26 +21,28 @@ import java.util.Arrays;
 import java.util.List;
 
 public class UrukKeyboardService extends InputMethodService {
-  private final String[] names={"EN·UZ","РУ·ЎЗ"};
+  private final String[] names={"eng","рус"};
   private final String[][] layouts={
-    {"qwertyuiop","asdfghjkl","zxcvbnm"},
+    {"qwertyuiopö","asdfghjklğş","zxcvbnmç"},
     {"йцукенгшщзх","фывапролджэ","ячсмитьбю"}
   };
   private final String[] emojis={"😀","😂","❤️","👍","🙏","🎉","🙂","✅","🔥","🌹"};
   private int language=0;
   private boolean uppercase=false,symbols=false,emoji=false,dark=false;
   private LinearLayout root,body,bar;
+  private android.widget.PopupWindow punctuationPopup;
   private final List<String> suggestions=new ArrayList<>();
   private TextView key(String title,float weight,int color){
     TextView v=new TextView(this);
-    v.setText(title);v.setTextSize(title.length()>4?13:21);v.setGravity(Gravity.CENTER);v.setTextColor(dark?Color.WHITE:Color.rgb(35,39,46));
-    GradientDrawable bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(dp(7));v.setBackground(bg);v.setElevation(dp(1));
+    v.setText(title);v.setTextSize(title.length()>1?16:22);v.setGravity(Gravity.CENTER);v.setTextColor(dark?Color.WHITE:Color.rgb(35,39,46));
+    v.setIncludeFontPadding(false);
+    GradientDrawable bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(dp(9));v.setBackground(bg);v.setElevation(dp(1));
     LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,(int)(50*getResources().getDisplayMetrics().density),weight);
     p.setMargins(dp(2),dp(3),dp(2),dp(3));v.setLayoutParams(p);return v;
   }
   private int dp(float value){return (int)(value*getResources().getDisplayMetrics().density+0.5f);}
   private int standard(){return dark?0xff454951:0xffffffff;}
-  private int utility(){return dark?0xff555a63:0xffd5d9e0;}
+  private int utility(){return dark?0xff555a63:0xffc9cacc;}
   private LinearLayout row(){
     LinearLayout r=new LinearLayout(this);r.setGravity(Gravity.CENTER);r.setOrientation(LinearLayout.HORIZONTAL);
     body.addView(r,new LinearLayout.LayoutParams(-1,-2));return r;
@@ -57,24 +59,22 @@ public class UrukKeyboardService extends InputMethodService {
     InputConnection c=getCurrentInputConnection();if(c!=null)c.deleteSurroundingText(1,0);
   }
   private void lang(int delta){
-    language=(language+names.length+delta)%names.length;render();
+    language=(language+names.length+delta)%names.length;
+    getSharedPreferences("keyboard",MODE_PRIVATE).edit().putInt("language",language).apply();
+    render();
   }
   // Long presses on base letters: one shared Latin and one shared Cyrillic layout.
   private String alternative(String letter){
     if(language==0){
-      switch(letter){
-        case "o": return "ö";
-        case "g": return "ğ";
-        case "s": return "ş";
-        case "c": return "ç";
-        default: return null;
-      }
+      return null; // Ö Ğ Ş Ç have their own primary keys.
     } else {
       switch(letter){
         case "у": return "ў";
         case "г": return "ғ";
         case "х": return "ҳ";
         case "к": return "қ";
+        case "е": return "ё";
+        case "ь": return "ъ";
         default: return null;
       }
     }
@@ -84,6 +84,12 @@ public class UrukKeyboardService extends InputMethodService {
     if(lastLetterRow){
       add(r,"⇧",1.4f,utility(),()->shift());
     }
+    LinearLayout letters=r;
+    if(lastLetterRow){
+      letters=new LinearLayout(this);
+      letters.setOrientation(LinearLayout.HORIZONTAL);
+      r.addView(letters,new LinearLayout.LayoutParams(0,-2,9f));
+    }
     for(String original:characters.split("")){
       if(original.isEmpty())continue;
       final String primary=uppercase?original.toUpperCase(java.util.Locale.ROOT):original;
@@ -91,15 +97,16 @@ public class UrukKeyboardService extends InputMethodService {
       final String secondary=alternateBase==null?null:(uppercase?alternateBase.toUpperCase(java.util.Locale.ROOT):alternateBase);
       android.widget.FrameLayout frame=new android.widget.FrameLayout(this);
       GradientDrawable bg=new GradientDrawable();
-      bg.setColor(standard());bg.setCornerRadius(dp(7));
+      bg.setColor(standard());bg.setCornerRadius(dp(9));
       frame.setBackground(bg);
       frame.setElevation(dp(1));
       LinearLayout.LayoutParams cell=new LinearLayout.LayoutParams(0,dp(51),1f);
       cell.setMargins(dp(2),dp(3),dp(2),dp(3));
-      r.addView(frame,cell);
+      letters.addView(frame,cell);
       TextView main=new TextView(this);
       main.setText(primary);
       main.setTextSize(22);
+      main.setIncludeFontPadding(false);
       main.setGravity(Gravity.CENTER);
       main.setTextColor(dark?Color.WHITE:0xff21242a);
       frame.addView(main,new android.widget.FrameLayout.LayoutParams(-1,-1));
@@ -115,6 +122,7 @@ public class UrukKeyboardService extends InputMethodService {
         frame.setContentDescription(primary+"; удерживайте для "+secondary);
         frame.setOnLongClickListener(v->{
           send(secondary);
+          confirmFeedback(v);
           if(uppercase){uppercase=false;render();}
           return true;
         });
@@ -131,6 +139,7 @@ public class UrukKeyboardService extends InputMethodService {
   // A long press on the period opens an actual two-option picker, rather
   // than automatically inserting punctuation or requiring a sliding gesture.
   private void showPunctuationChoices(View anchor){
+    dismissPunctuation();
     LinearLayout options=new LinearLayout(this);
     options.setOrientation(LinearLayout.HORIZONTAL);
     options.setPadding(dp(3),dp(3),dp(3),dp(3));
@@ -138,12 +147,14 @@ public class UrukKeyboardService extends InputMethodService {
     panel.setColor(dark?0xff30343c:0xfff2f4f8);
     panel.setCornerRadius(dp(6));
     options.setBackground(panel);
-    final android.widget.PopupWindow popup=new android.widget.PopupWindow(options,dp(124),dp(56),false);
+    final android.widget.PopupWindow popup=new android.widget.PopupWindow(options,dp(124),dp(56),true);
+    punctuationPopup=popup;
+    popup.setOnDismissListener(()->{if(punctuationPopup==popup)punctuationPopup=null;});
     popup.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
     popup.setOutsideTouchable(true);
     popup.setElevation(dp(5));
     popup.setInputMethodMode(android.widget.PopupWindow.INPUT_METHOD_NOT_NEEDED);
-    for(String value:new String[]{",","?"}){
+    for(String value:new String[]{"?",","}){
       TextView button=new TextView(this);
       button.setText(value);
       button.setContentDescription(value.equals(",")?"Comma":"Question mark");
@@ -157,13 +168,27 @@ public class UrukKeyboardService extends InputMethodService {
       LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-1,1);
       lp.setMargins(dp(2),dp(1),dp(2),dp(1));
       options.addView(button,lp);
-      button.setOnClickListener(v->{popup.dismiss();send(value);});
+      button.setOnClickListener(v->{send(value);confirmFeedback(v);popup.dismiss();});
     }
-    popup.showAsDropDown(anchor,-dp(58),-dp(118));
+    int[] location=new int[2];anchor.getLocationInWindow(location);
+    int panelWidth=dp(124);
+    int x=Math.max(dp(4),Math.min(location[0]+anchor.getWidth()/2-panelWidth/2,
+      getResources().getDisplayMetrics().widthPixels-panelWidth-dp(4)));
+    popup.showAsDropDown(anchor,x-location[0],-anchor.getHeight()-dp(62));
+  }
+  private void dismissPunctuation(){
+    if(punctuationPopup!=null){punctuationPopup.dismiss();punctuationPopup=null;}
+  }
+  private void confirmFeedback(View view){
+    android.os.Vibrator vibrator=(android.os.Vibrator)getSystemService(VIBRATOR_SERVICE);
+    if(vibrator!=null&&vibrator.hasVibrator()){
+      vibrator.vibrate(android.os.VibrationEffect.createOneShot(18,android.os.VibrationEffect.DEFAULT_AMPLITUDE));
+    } else view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
   }
   private void render(){
     if(root==null)return;
-    root.setBackgroundColor(dark?0xff262930:0xffe4e6eb);
+    dismissPunctuation();
+    root.setBackgroundColor(dark?0xff262930:0xffe3e3e7);
     body.removeAllViews();
     // Thin number row, no additional toolbar.
     LinearLayout digits=row();
@@ -194,7 +219,7 @@ public class UrukKeyboardService extends InputMethodService {
       characterRow(layouts[language][2],true);
     }
     LinearLayout bottom=row();
-    TextView mode=key((symbols||emoji)?"ABC":"?123",1.4f,utility());
+    TextView mode=key((symbols||emoji)?"abc":"123",1.4f,utility());
     bottom.addView(mode);
     mode.setOnClickListener(v->{
       if(symbols||emoji){symbols=false;emoji=false;}
@@ -203,9 +228,10 @@ public class UrukKeyboardService extends InputMethodService {
     });
     mode.setOnLongClickListener(v->{emoji=!emoji;symbols=false;render();return true;});
     add(bottom,"◎",1f,utility(),()->lang(1));
-    TextView space=key(names[language],5f,standard());
+    TextView space=key(names[language],7.1f,standard());
     bottom.addView(space);
     space.setTextSize(15);
+    space.setTextColor(dark?0xffa5a5aa:0xff85858b);
     space.setOnTouchListener(new View.OnTouchListener(){
       float startX,startY;
       @Override public boolean onTouch(View v,MotionEvent e){
@@ -227,17 +253,30 @@ public class UrukKeyboardService extends InputMethodService {
     TextView enter=key("OK",1.4f,utility());
     enter.setTextColor(0xff367ad7);
     bottom.addView(enter);
+    android.view.inputmethod.EditorInfo info=getCurrentInputEditorInfo();
+    int action=info==null?0:info.imeOptions&android.view.inputmethod.EditorInfo.IME_MASK_ACTION;
+    boolean newline=info==null||(info.imeOptions&android.view.inputmethod.EditorInfo.IME_FLAG_NO_ENTER_ACTION)!=0
+      ||action==android.view.inputmethod.EditorInfo.IME_ACTION_NONE||action==android.view.inputmethod.EditorInfo.IME_ACTION_UNSPECIFIED;
+    enter.setText(newline?"↵":action==android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH?"⌕":
+      action==android.view.inputmethod.EditorInfo.IME_ACTION_NEXT?"→":"OK");
+    enter.setContentDescription(newline?"Новая строка":"Подтвердить ввод");
     enter.setOnClickListener(v->{
       InputConnection c=getCurrentInputConnection();
-      if(c!=null)c.performEditorAction(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
+      if(c!=null){if(newline)c.commitText("\n",1);else c.performEditorAction(action);}
     });
   }
   @Override public View onCreateInputView(){
+    language=getSharedPreferences("keyboard",MODE_PRIVATE).getInt("language",0)%names.length;
     root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(10),dp(10),dp(10),dp(11));
     body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);root.addView(body);
     render();return root;
   }
   @Override public void onFinishInputView(boolean finishingInput){
+    dismissPunctuation();
     super.onFinishInputView(finishingInput);
   }
+  @Override public void onStartInputView(android.view.inputmethod.EditorInfo info,boolean restarting){
+    super.onStartInputView(info,restarting);uppercase=false;symbols=false;emoji=false;render();
+  }
 }
+
