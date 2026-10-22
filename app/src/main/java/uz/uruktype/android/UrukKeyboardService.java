@@ -36,9 +36,9 @@ public class UrukKeyboardService extends InputMethodService {
   private TextView key(String title,float weight,int color){
     TextView v=new TextView(this);
     v.setText(title);v.setTextSize(title.length()>4?13:21);v.setGravity(Gravity.CENTER);v.setTextColor(dark?Color.WHITE:Color.rgb(35,39,46));
-    GradientDrawable bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(12);v.setBackground(bg);
+    GradientDrawable bg=new GradientDrawable();bg.setColor(color);bg.setCornerRadius(18*getResources().getDisplayMetrics().density);v.setBackground(bg);v.setElevation(1.5f*getResources().getDisplayMetrics().density);
     LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,(int)(50*getResources().getDisplayMetrics().density),weight);
-    p.setMargins(2,3,2,3);v.setLayoutParams(p);return v;
+    p.setMargins(3,4,3,4);v.setLayoutParams(p);return v;
   }
   private int standard(){return dark?0xff454951:0xffffffff;}
   private int utility(){return dark?0xff555a63:0xffd5d9e0;}
@@ -73,14 +73,14 @@ public class UrukKeyboardService extends InputMethodService {
   }
   private void render(){
     if(root==null)return;
-    int background=dark?0xff292c32:0xffe5e8ef;root.setBackgroundColor(background);
+    int background=dark?0xff24262c:0xffe9edf4;root.setBackgroundColor(background);
     body.removeAllViews();
     LinearLayout tools=row();
-    add(tools,"⚙",1,utility(),()->{dark=!dark;render();});
+    add(tools,"☷",1,utility(),()->{dark=!dark;render();});
     add(tools,names[language],1,utility(),()->lang(1));
     add(tools,"🙂",1,utility(),()->{emoji=!emoji;symbols=false;render();});
     add(tools,"?123",1,utility(),()->{symbols=!symbols;emoji=false;render();});
-    add(tools,"⇤",1,utility(),()->erase());
+    add(tools,"⌫",1,utility(),()->erase());
     if(emoji){
       LinearLayout r=row();
       for(int i=0;i<5;i++){String s=emojis[i];add(r,s,1,standard(),()->send(s));}
@@ -118,7 +118,7 @@ public class UrukKeyboardService extends InputMethodService {
     });
   }
   @Override public View onCreateInputView(){
-    root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(2,5,2,8);
+    root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(4,7,4,12);
     body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);root.addView(body);
     render();return root;
   }
